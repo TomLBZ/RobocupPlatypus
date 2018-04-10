@@ -77,5 +77,6 @@ typedef unsigned char uint8_t;
 #define pgm_read_ptr(address_short)   short()
 
 #include "Rescue2018.ino"
+#include "LaserTrack.ino"
 #endif
 #endif

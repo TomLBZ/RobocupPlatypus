@@ -16,6 +16,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Rescue2018.ino" />
+    <None Include="LaserTrack.ino" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="__vm\.Rescue2018.vsarduino.h">
