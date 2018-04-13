@@ -29,11 +29,11 @@ const int SERVOUP = 120;
 const int SERVORELEASE = 180;
 const int LEFT = 1;
 const int RIGHT = -1;
-const int LONGSIDETIME = 4000;
-const int SHORTSIDETIME = 3000;
-const int LONGTESTTIME = 2000;
+const int LONGSIDETIME = 2100;
+const int SHORTSIDETIME = 1400;
+const int LONGTESTTIME = 1500;
 const int SHORTTESTTIME = 1000;
-const int ALIGNINGTIME = 500;
+const int ALIGNINGTIME = 300;
 const int DELTATIME = 10;
 const int REVERSETIME = 200;
 const int TURNINGTIME = 400;
@@ -89,14 +89,38 @@ void Blindsweep()
 	Deposit();
 }
 
-void Forward(int vL, int vR, int duration, bool IsBraking)
+void Forward(int vL, int vR, int duration, bool IsBraking, bool IsTurning = false)
 {
-	md.setSpeeds(vR, vL);
-	delay(duration);
+	//Gryo control: based on current theta. 
+	//Larger than Criterion -> adjust to the left.
+	//Smaller than Criterion -> adjust to the right.
+	md.setSpeeds(vR, vL);//m1 is right side; m2 is left side.
+	if (IsTurning)
+	{
+		delay(duration);
+	}
+	else 
+	{
+		float Criterion = GetAngle();
+		int loops = duration / DELTATIME;
+		while (loops > 0)
+		{
+			if (GetAngle() - Criterion > 0)//increase V right, decrease V left
+			{
+				md.setSpeeds(vR + TVR / 2, vL - TVL / 2);
+			}
+			else 
+			{
+				md.setSpeeds(vR - TVR / 2, vL + TVL / 2);
+			}
+			loops -= 1;
+			delay(DELTATIME);
+		}
+	}
 	if (IsBraking)
 	{
-		//md.setBrakes(255, 255);
-		SETBRAKES(md, vL, vR, BRAKECYCLES);
+		md.setBrakes(vR, vL);
+		//SETBRAKES(md, vL, vR, BRAKECYCLES);
 	}
 }
 
@@ -107,11 +131,11 @@ void Turn(float theta, int direction)
 	{
 		if (direction == LEFT)
 		{
-			Forward(-TVL, TVR, DELTATIME, false);
+			Forward(-TVL, TVR, DELTATIME, false, true);
 		}
 		else
 		{
-			Forward(TVL, -TVR, DELTATIME, false);
+			Forward(TVL, -TVR, DELTATIME, false, true);
 		}
 	}
 	Forward(0, 0, 0, true);
