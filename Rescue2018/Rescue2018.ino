@@ -4,7 +4,6 @@
  Author:	Li Bozhao
 */
 
-///<<<<<<< HEAD
 #include <DualVNH5019MotorShield.h>
 #include <Wire.h>
 //#include <Servo.h>
@@ -13,17 +12,15 @@
 
 
 #pragma region BlindSweepVarsAndConsts
-
-//const int INTERRUPT_PIN = 2;  // use pin 2 on Arduino Uno & most boards
 const int GyroADO = 13;
-//const int SERVOPIN = 9;
-const int Servo0 = A2;
-const int Servo180 = A3;
+const int SERVO0 = A2;
+const int SERVO180 = A3;
 const int THETA = 90;
 const int VL = 255;
 const int VR = 255;
 const int TVL = 100;
 const int TVR = 100;
+const int VBRAKEMIN = 75;
 const int SERVODOWN = 0;
 const int SERVOUP = 120;
 const int SERVORELEASE = 180;
@@ -37,7 +34,7 @@ const int ALIGNINGTIME = 300;
 const int DELTATIME = 10;
 const int REVERSETIME = 200;
 const int TURNINGTIME = 400;
-const int SERVOTIME = 2000;
+const int SERVOTIME = 1800;
 const int BRAKETIME = 80;
 const int BRAKECYCLES = 5;
 const int FAR = -100;
@@ -47,7 +44,7 @@ const int CLOSE = -10;
 DualVNH5019MotorShield md;
 MPU6050 mpu(0x69); // <-- use for AD0 high
 
-uint8_t mpuIntStatus;   // holds actual  status byte from MPU
+uint8_t mpuIntStatus;   // holds actual interrupt status byte from MPU
 uint8_t devStatus;      // return status after each device operation (0 = success, !0 = error)
 uint16_t packetSize;    // expected DMP packet size (default is 42 bytes)
 uint16_t fifoCount;     // count of all bytes currently in FIFO
@@ -64,9 +61,7 @@ int ZONELOCATION = 0;
 #pragma region BlindSweepFuncs
 void Blindsweep() 
 {
-  Serial.print("checkingzone");
 	CheckZone();
-  Serial.print("doneCheckingZone");
 	ReturnHome(ZONELOCATION);
 	while (IsBlindSweeping)
 	{
@@ -94,14 +89,15 @@ void Forward(int vL, int vR, int duration, bool IsBraking, bool IsTurning = fals
 	//Gryo control: based on current theta. 
 	//Larger than Criterion -> adjust to the left.
 	//Smaller than Criterion -> adjust to the right.
-	md.setSpeeds(vR, vL);//m1 is right side; m2 is left side.
 	if (IsTurning)
 	{
+		md.setSpeeds(vR, vL);//m1 is right side; m2 is left side.
 		delay(duration);
 	}
 	else 
 	{
 		float Criterion = GetAngle();
+		md.setSpeeds(vR, vL);//m1 is right side; m2 is left side.
 		int loops = duration / DELTATIME;
 		while (loops > 0)
 		{
@@ -160,7 +156,7 @@ float GetAngle()
 		mpu.dmpGetGravity(&gravity, &q);
 		mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
 		//Serial.print("turn:\t");
-		Serial.println(ypr[0] * 180/M_PI);
+		//Serial.println(ypr[0] * 180/M_PI);
 		return (ypr[0] * 180 / M_PI);
 	}
 }
@@ -177,26 +173,25 @@ bool IsTurned(int theta, float criterion)
 
 void ServoTurn(int degree, int duration)
 {
-    Serial.print("startingServo");  
-		//servo.write(degree);
-    if (degree == SERVODOWN){
-      digitalWrite(Servo0,HIGH);
-      digitalWrite(Servo180,LOW);
-      }
-      
-    if (degree == SERVOUP){
-      digitalWrite(Servo0,LOW);
-      digitalWrite(Servo180,LOW);
-      }
-      
-    if (degree == SERVORELEASE){
-      digitalWrite(Servo0,LOW);
-      digitalWrite(Servo180,HIGH);
-      }
-    Serial.print("ServoSet");
-		delay(duration);
-}
+	//Serial.print("startingServo");
+	//servo.write(degree);
+	if (degree == SERVODOWN) {
+		digitalWrite(SERVO0, HIGH);
+		digitalWrite(SERVO180, LOW);
+	}
 
+	if (degree == SERVOUP) {
+		digitalWrite(SERVO0, LOW);
+		digitalWrite(SERVO180, LOW);
+	}
+
+	if (degree == SERVORELEASE) {
+		digitalWrite(SERVO0, LOW);
+		digitalWrite(SERVO180, HIGH);
+	}
+	//Serial.print("ServoSet");
+	delay(duration);
+}
 void CheckZone()//0 straight, 1 left, 2 diagonal
 {
 	ServoTurn(SERVODOWN, SERVOTIME);
@@ -312,7 +307,7 @@ void GyroSetUp()
 #elif I2CDEV_IMPLEMENTATION == I2CDEV_BUILTIN_FASTWIRE
 	Fastwire::setup(400, true);
 #endif
-	Serial.println(F("Initializing I2C devices..."));
+	//Serial.println(F("Initializing I2C devices..."));
 	mpu.initialize();
 	//pinMode(INTERRUPT_PIN, INPUT);
 	// verify connection
@@ -352,10 +347,10 @@ void GyroSetUp()
 void SETBRAKES(DualVNH5019MotorShield motor, int LBrake, int RBrake, int brakeCycles)
 {
 	int iL = LBrake / 2;
-	if (iL < 75) { iL = 75; }
+	if (iL < VBRAKEMIN) { iL = VBRAKEMIN; }
 	int diL = iL / brakeCycles;
 	int iR = RBrake / 2;
-	if (iR < 75) { iR = 75; }
+	if (iR < VBRAKEMIN) { iR = VBRAKEMIN; }
 	int diR = iR / brakeCycles;
 	int t = BRAKETIME;
 	int dt = BRAKETIME / brakeCycles;
@@ -391,26 +386,14 @@ void setup() {
 	}
 	GyroSetUp();
 	md.init();
-	pinMode(Servo0, OUTPUT);
-	pinMode(Servo180, OUTPUT);
-	digitalWrite(Servo0, LOW);
-	digitalWrite(Servo180, LOW);
-}//====== =
-// the setup function runs once when you press reset or power the board
-void setup() {
-
-//>>>>>>> Add project files.
+	pinMode(SERVO0, OUTPUT);
+	pinMode(SERVO180, OUTPUT);
+	digitalWrite(SERVO0, LOW);
+	digitalWrite(SERVO180, LOW);
 }
 
 // the loop function runs over and over again until power down or reset
 void loop() {
-//<<<<<<< HEAD
 	Serial.print("Entering Loop");
 	Blindsweep();
- //Turn(90,1);
- //delay(1000);
-
-//=======
-  
-//>>>>>>> Add project files.
 }
