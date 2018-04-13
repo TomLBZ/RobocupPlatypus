@@ -4,6 +4,7 @@
  Author:	Li Bozhao
 */
 
+///<<<<<<< HEAD
 #include <DualVNH5019MotorShield.h>
 #include <Wire.h>
 //#include <Servo.h>
@@ -366,17 +367,26 @@ void setup() {
 	}
 	GyroSetUp();
 	md.init();
-  pinMode(Servo0,OUTPUT);
-  pinMode(Servo180,OUTPUT);
-  digitalWrite(Servo0,LOW);
-  digitalWrite(Servo180,LOW);
+	pinMode(Servo0, OUTPUT);
+	pinMode(Servo180, OUTPUT);
+	digitalWrite(Servo0, LOW);
+	digitalWrite(Servo180, LOW);
+}//====== =
+// the setup function runs once when you press reset or power the board
+void setup() {
+
+//>>>>>>> Add project files.
 }
 
 // the loop function runs over and over again until power down or reset
 void loop() {
+//<<<<<<< HEAD
 	Serial.print("Entering Loop");
 	Blindsweep();
  //Turn(90,1);
  //delay(1000);
 
+//=======
+  
+//>>>>>>> Add project files.
 }
