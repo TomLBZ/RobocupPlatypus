@@ -6,20 +6,18 @@
 
 #include <DualVNH5019MotorShield.h>
 #include <Wire.h>
-//#include <Servo.h>
 #include "I2Cdev.h"
 #include "MPU6050_6Axis_MotionApps20.h"
 
-
 #pragma region BlindSweepVarsAndConsts
 const int GyroADO = 13;
-const int SERVO0 = A2;
-const int SERVO180 = A3;
+const int SERVO0 = 5;
+const int SERVO180 = 11;
 const int THETA = 90;
-const int VL = 255;
-const int VR = 255;
-const int TVL = 100;
-const int TVR = 100;
+const int VL = 180;
+const int VR = 180;
+const int TVL = 120;
+const int TVR = 120;
 const int VBRAKEMIN = 75;
 const int SERVODOWN = 0;
 const int SERVOUP = 120;
@@ -40,7 +38,6 @@ const int BRAKECYCLES = 5;
 const int FAR = -100;
 const int CLOSE = -10;
 
-//Servo servo;
 DualVNH5019MotorShield md;
 MPU6050 mpu(0x69); // <-- use for AD0 high
 
@@ -98,19 +95,18 @@ void Forward(int vL, int vR, int duration, bool IsBraking, bool IsTurning = fals
 	{
 		float Criterion = GetAngle();
 		md.setSpeeds(vR, vL);//m1 is right side; m2 is left side.
-		int loops = duration / DELTATIME;
-		while (loops > 0)
+		long prevT = millis();
+		while (millis() - prevT < duration)
 		{
 			if (GetAngle() - Criterion > 0)//increase V right, decrease V left
 			{
-				md.setSpeeds(vR + TVR / 2, vL - TVL / 2);
+				md.setSpeeds(vR + TVR / 2, vL - TVL / 2); //difference equals to TVL or TVR
 			}
 			else 
 			{
 				md.setSpeeds(vR - TVR / 2, vL + TVL / 2);
 			}
-			loops -= 1;
-			delay(DELTATIME);
+			//delay(DELTATIME);
 		}
 	}
 	if (IsBraking)
@@ -139,11 +135,12 @@ void Turn(float theta, int direction)
 
 float GetAngle()
 {
-	mpu.resetFIFO();
 	mpuInterrupt = false;
+	mpu.resetFIFO();
 	mpuIntStatus = mpu.getIntStatus();
 	fifoCount = mpu.getFIFOCount();
-	if (mpuIntStatus & 0x02) {
+	if (mpuIntStatus & 0x02) 
+	{
 		// wait for correct available data length, should be a VERY short wait
 		while (fifoCount < packetSize) fifoCount = mpu.getFIFOCount();
 		// read a packet from FIFO
@@ -159,12 +156,11 @@ float GetAngle()
 		//Serial.println(ypr[0] * 180/M_PI);
 		return (ypr[0] * 180 / M_PI);
 	}
+	else 
+	{
+		Serial.println(mpuIntStatus);
+	}
 }
-
-//void dmpDataReady() 
-//{
-	//mpuInterrupt = true;
-//}
 
 bool IsTurned(int theta, float criterion)
 {
@@ -173,8 +169,6 @@ bool IsTurned(int theta, float criterion)
 
 void ServoTurn(int degree, int duration)
 {
-	//Serial.print("startingServo");
-	//servo.write(degree);
 	if (degree == SERVODOWN) {
 		digitalWrite(SERVO0, HIGH);
 		digitalWrite(SERVO180, LOW);
@@ -189,7 +183,6 @@ void ServoTurn(int degree, int duration)
 		digitalWrite(SERVO0, LOW);
 		digitalWrite(SERVO180, HIGH);
 	}
-	//Serial.print("ServoSet");
 	delay(duration);
 }
 void CheckZone()//0 straight, 1 left, 2 diagonal
@@ -244,61 +237,63 @@ void ReturnHome(int zonelocation)
 	switch (zonelocation)
 	{
 	case 0:
-		Forward(-VL, -VR, SHORTTESTTIME, true);
-		ServoTurn(SERVOUP, SERVOTIME);
-		Turn(THETA, LEFT);
-		ServoTurn(SERVODOWN, SERVOTIME);
-		Forward(-VL, -VR, ALIGNINGTIME, false);//aligning
-		Forward(VL, VR, LONGSIDETIME, true);
-		Forward(-VL, -VR, REVERSETIME, true);
-		ServoTurn(SERVOUP, SERVOTIME);
-		Forward(VL, VR, TURNINGTIME, true);
-		Turn(THETA, RIGHT);
-		ServoTurn(SERVODOWN, SERVOTIME);
-		Forward(-VL, -VR, ALIGNINGTIME, false);//aligning
-		break;
+		Forward(-VL, -VR, SHORTTESTTIME, true);	//backward to gate
+		ServoTurn(SERVOUP, SERVOTIME);			//servo up
+		Turn(THETA, LEFT);						//turn left by 90
+		ServoTurn(SERVODOWN, SERVOTIME);		//servo down
+		Forward(-VL, -VR, ALIGNINGTIME, false);	//aligning with right wall
+		Forward(VL, VR, LONGSIDETIME, true);	//go towards left wall
+		Forward(-VL, -VR, REVERSETIME, true);	//reverse to have clearance
+		ServoTurn(SERVOUP, SERVOTIME);			//servo up
+		Forward(VL, VR, TURNINGTIME, true);		//forward to clear machanism
+		Turn(THETA, RIGHT);						//turn right by 90
+		ServoTurn(SERVODOWN, SERVOTIME);		//servo down
+		Forward(-VL, -VR, ALIGNINGTIME, false);	//aligning with back wall
+		break;									//now in ready position
 	case 1:
-		Forward(-VL, -VR, LONGTESTTIME, true);
-		ServoTurn(SERVOUP, SERVOTIME);
-		Turn(THETA, RIGHT);
-		ServoTurn(SERVODOWN, SERVOTIME);
-		break;
-	default://case 2
-		Forward(-VL, -VR, LONGTESTTIME, true);
-		ServoTurn(SERVOUP, SERVOTIME);
-		Turn(THETA, RIGHT);
-		ServoTurn(SERVODOWN, SERVOTIME);
-		break;
+		Forward(-VL, -VR, LONGTESTTIME, true);	//backward to gate
+		ServoTurn(SERVOUP, SERVOTIME);			//servo up
+		Turn(THETA, RIGHT);						//turn right by 90
+		ServoTurn(SERVODOWN, SERVOTIME);		//servo up
+		break;									//now in ready position
+	default://case 2:
+		Forward(-VL, -VR, LONGTESTTIME, true);	//backward to gate
+		ServoTurn(SERVOUP, SERVOTIME);			//servo up
+		Turn(THETA, RIGHT);						//turn right by 90
+		ServoTurn(SERVODOWN, SERVOTIME);		//servo up
+		break;									//now in ready position
 	}
 }
 
 void SweepHalfCycle(int direction)
 {
-	Forward(VL, VR, SHORTSIDETIME, true);
-	Forward(-VL, -VR, REVERSETIME, true);
-	ServoTurn(SERVOUP, SERVOTIME);
-	Forward(VL, VR, TURNINGTIME, true);
-	Turn(THETA, direction);
-	IsBlindSweeping = !IsZone(CLOSE);
-	ServoTurn(SERVODOWN, SERVOTIME);
-	Forward(VL, VR, TURNINGTIME, true);
-	ServoTurn(SERVOUP, SERVOTIME);
-	Turn(THETA, direction);
-	Forward(-VL, -VR, ALIGNINGTIME, false);//aligning
+	Forward(VL, VR, SHORTSIDETIME, true);	//forward a short side distance
+	Forward(-VL, -VR, REVERSETIME, true);	//reverse to have clearance
+	ServoTurn(SERVOUP, SERVOTIME);			//servo up
+	Forward(VL, VR, TURNINGTIME, true);		//forward to clear mechanism
+	Turn(THETA, direction);					//turn 90 to direction
+	IsBlindSweeping = !IsZone(CLOSE);		//check for evacuation zone
+	if (IsBlindSweeping)
+	{
+		ServoTurn(SERVODOWN, SERVOTIME);		//servo down
+		Forward(VL, VR, TURNINGTIME, true);		//forward to clear track
+		ServoTurn(SERVOUP, SERVOTIME);			//servo up
+		Turn(THETA, direction);					//turn 90 to direction
+		Forward(-VL, -VR, ALIGNINGTIME, false);	//aligning with a wall
+	}										//now ready for next half-cycle
 }
 
 void Deposit()
 {
-	ServoTurn(SERVOUP, SERVOTIME);
-	Turn(2 * THETA, LEFT);
-	Forward(-TVL, -TVR, SHORTTESTTIME, false);
-	ServoTurn(SERVORELEASE, SERVOTIME);
+	ServoTurn(SERVOUP, SERVOTIME);				//servo up
+	Turn(2 * THETA, LEFT);						//turn 180 to the left
+	Forward(-TVL, -TVR, SHORTTESTTIME, false);	//back until aligned with zone
+	ServoTurn(SERVORELEASE, SERVOTIME);			//release balls
 }
 
 void GyroSetUp()
 {
 	Wire.begin();
-	// put your setup code here, to run once:
 	// join I2C bus (I2Cdev library doesn't do this automatically)
 	pinMode(GyroADO, OUTPUT);
 	digitalWrite(GyroADO, HIGH);
@@ -309,9 +304,7 @@ void GyroSetUp()
 #endif
 	//Serial.println(F("Initializing I2C devices..."));
 	mpu.initialize();
-	//pinMode(INTERRUPT_PIN, INPUT);
 	// verify connection
-	//Serial.println(F("Testing device connections..."));
 	//Serial.println(mpu.testConnection() ? F("MPU6050 connection successful") : F("MPU6050 connection failed"));
 	// load and configure the DMP
 	//Serial.println(F("Initializing DMP..."));
@@ -326,10 +319,6 @@ void GyroSetUp()
 		// turn on the DMP, now that it's ready
 		//Serial.println(F("Enabling DMP..."));
 		mpu.setDMPEnabled(true);
-		// enable Arduino interrupt detection
-		//Serial.println(F("Enabling interrupt detection (Arduino external interrupt 0)..."));
-		//attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN), dmpDataReady, RISING);
-		//attachInterrupt(digitalPinToInterrupt(3), dmpDataReady, RISING);
 		mpuIntStatus = mpu.getIntStatus();
 		// set our DMP Ready flag so the main loop() function knows it's okay to use it
 		Serial.println(F("DMP ready! Waiting for first interrupt..."));
@@ -371,7 +360,6 @@ void SETBRAKES(DualVNH5019MotorShield motor, int LBrake, int RBrake, int brakeCy
 
 // the setup function runs once when you press reset or power the board
 void setup() {
-	//servo.attach(SERVOPIN);
 	Serial.begin(115200);
 	bool IsStarting = false;
 	while (!IsStarting)
