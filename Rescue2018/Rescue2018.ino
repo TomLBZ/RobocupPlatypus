@@ -14,10 +14,10 @@ const int GyroADO = 13;
 const int SERVO0 = 5;
 const int SERVO180 = 11;
 const int THETA = 90;
-const int VL = 180;
-const int VR = 180;
-const int TVL = 120;
-const int TVR = 120;
+const int VL = 200;
+const int VR = 200;
+const int TVL = 100;
+const int TVR = 100;
 const int VBRAKEMIN = 75;
 const int SERVODOWN = 0;
 const int SERVOUP = 120;
@@ -197,7 +197,7 @@ void CheckZone()//0 straight, 1 left, 2 diagonal
 	else
 	{
 		ServoTurn(SERVODOWN, SERVOTIME);
-		Forward(-VL, -VR, SHORTTESTTIME, true);
+		Forward(-VL, -VR, SHORTTESTTIME - REVERSETIME, true);
 		ServoTurn(SERVOUP, SERVOTIME);
 		Turn(THETA, LEFT);
 		ServoTurn(SERVODOWN, SERVOTIME);
@@ -362,6 +362,8 @@ void SETBRAKES(DualVNH5019MotorShield motor, int LBrake, int RBrake, int brakeCy
 void setup() {
 	Serial.begin(115200);
 	bool IsStarting = false;
+	GyroSetUp();
+	md.init();
 	while (!IsStarting)
 	{
 		while (!Serial.available())
@@ -372,8 +374,6 @@ void setup() {
 			IsStarting = true;
 		}
 	}
-	GyroSetUp();
-	md.init();
 	pinMode(SERVO0, OUTPUT);
 	pinMode(SERVO180, OUTPUT);
 	digitalWrite(SERVO0, LOW);
@@ -383,5 +383,8 @@ void setup() {
 // the loop function runs over and over again until power down or reset
 void loop() {
 	Serial.print("Entering Loop");
+	ServoTurn(SERVORELEASE, SERVOTIME);
+	Forward(VL, VR, SHORTTESTTIME, true, true);
 	Blindsweep();
+	while (true);
 }
