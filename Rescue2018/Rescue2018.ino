@@ -14,19 +14,20 @@ const int GyroADO = 13;
 const int SERVO0 = 5;
 const int SERVO180 = 11;
 const int THETA = 90;
-const int VL = 200;
-const int VR = 200;
-const int TVL = 100;
-const int TVR = 100;
+const int VL = 220;
+const int VR = 220;
+const int TVL = 110;
+const int TVR = 110;
 const int VBRAKEMIN = 75;
 const int SERVODOWN = 0;
 const int SERVOUP = 120;
 const int SERVORELEASE = 180;
 const int LEFT = 1;
 const int RIGHT = -1;
-const int LONGSIDETIME = 2100;
-const int SHORTSIDETIME = 1400;
-const int LONGTESTTIME = 1500;
+const int TURNINGBIAS = 3;
+const int LONGSIDETIME = 2800;
+const int SHORTSIDETIME = 1900;
+const int LONGTESTTIME = 1800;
 const int SHORTTESTTIME = 1000;
 const int ALIGNINGTIME = 300;
 const int DELTATIME = 10;
@@ -100,11 +101,11 @@ void Forward(int vL, int vR, int duration, bool IsBraking, bool IsTurning = fals
 		{
 			if (GetAngle() - Criterion > 0)//increase V right, decrease V left
 			{
-				md.setSpeeds(vR + TVR / 2, vL - TVL / 2); //difference equals to TVL or TVR
+				md.setSpeeds(vR + TVR / 4, vL - TVL / 4); //difference equals to TVL / 2 or TVR / 2
 			}
 			else 
 			{
-				md.setSpeeds(vR - TVR / 2, vL + TVL / 2);
+				md.setSpeeds(vR - TVR / 4, vL + TVL / 4);
 			}
 			//delay(DELTATIME);
 		}
@@ -119,7 +120,7 @@ void Forward(int vL, int vR, int duration, bool IsBraking, bool IsTurning = fals
 void Turn(float theta, int direction)
 {
 	float Criterion = GetAngle();
-	while (!IsTurned(theta, Criterion))
+	while (!IsTurned(theta, Criterion, direction))
 	{
 		if (direction == LEFT)
 		{
@@ -162,9 +163,42 @@ float GetAngle()
 	}
 }
 
-bool IsTurned(int theta, float criterion)
+bool IsTurned(int theta, float current, int direction)
 {
-	return abs(GetAngle() - criterion) >= theta;
+	float target;	//gryo range is (L, R) <- [-180.0, 180.0]
+	float angle = GetAngle();
+	if (direction == LEFT)
+	{
+		target = current - theta;
+		if (target >= -180.0)			//normal case
+		{
+			return !(angle >= target + TURNINGBIAS & angle <= current + TURNINGBIAS); 
+			// return true if not in turning range, having a bias to prevent backshaking and overturning.
+		}
+		else							//target causes discontinuity
+		{
+			target = 360.0 + target;		//shift lower bound up
+			return !((angle >= -180.0 & angle <= current + TURNINGBIAS) | (angle >= target + TURNINGBIAS & angle <= 180.0));
+		}
+	}
+	else if (direction == RIGHT)
+	{
+		target = current + theta;
+		if (target <= 180.0)			//normal case
+		{
+			return !(angle <= target - TURNINGBIAS & angle >= current - TURNINGBIAS);
+			// return true if not in turning range, having a bias to prevent backshaking and overturning.
+		}
+		else							//target causes discontinuity
+		{
+			target = target - 360.0;		//shift lower bound up
+			return !((angle <= 180.0 & angle >= current - TURNINGBIAS) | (angle <= target - TURNINGBIAS & angle >= -180.0));
+		}
+	}
+	else
+	{
+		return true;
+	}
 }
 
 void ServoTurn(int degree, int duration)
@@ -189,6 +223,7 @@ void CheckZone()//0 straight, 1 left, 2 diagonal
 {
 	ServoTurn(SERVODOWN, SERVOTIME);
 	Forward(VL, VR, SHORTTESTTIME, true);
+	Forward(-VL, -VR, REVERSETIME, true);
 	ServoTurn(SERVOUP, SERVOTIME);
 	if (IsZone(FAR))
 	{
@@ -202,6 +237,7 @@ void CheckZone()//0 straight, 1 left, 2 diagonal
 		Turn(THETA, LEFT);
 		ServoTurn(SERVODOWN, SERVOTIME);
 		Forward(VL, VR, LONGTESTTIME, true);
+		Forward(-VL, -VR, REVERSETIME, true);
 		ServoTurn(SERVOUP, SERVOTIME);
 		if (IsZone(FAR))
 		{
