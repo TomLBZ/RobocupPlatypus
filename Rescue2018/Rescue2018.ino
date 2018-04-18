@@ -14,8 +14,8 @@ const int GyroADO = 13;
 const int SERVO0 = 5;
 const int SERVO180 = 11;
 const int THETA = 90;
-const int VL = 220;
-const int VR = 220;
+const int VL = 240;
+const int VR = 240;
 const int TVL = 110;
 const int TVR = 110;
 const int VBRAKEMIN = 75;
@@ -24,14 +24,14 @@ const int SERVOUP = 120;
 const int SERVORELEASE = 180;
 const int LEFT = 1;
 const int RIGHT = -1;
-const int TURNINGBIAS = 3;
-const int LONGSIDETIME = 2800;
-const int SHORTSIDETIME = 1900;
-const int LONGTESTTIME = 1800;
+const int TURNINGBIAS = 1;
+const int LONGSIDETIME = 3000;
+const int SHORTSIDETIME = 2000;
+const int LONGTESTTIME = 2000;
 const int SHORTTESTTIME = 1000;
-const int ALIGNINGTIME = 300;
+const int ALIGNINGTIME = 500;
 const int DELTATIME = 10;
-const int REVERSETIME = 200;
+const int REVERSETIME = 100;
 const int TURNINGTIME = 400;
 const int SERVOTIME = 1800;
 const int BRAKETIME = 80;
@@ -61,21 +61,21 @@ void Blindsweep()
 {
 	CheckZone();
 	ReturnHome(ZONELOCATION);
+	int direction;
+	switch (ZONELOCATION)
+	{
+	case 0:
+		direction = RIGHT;
+		break;
+	case 1:
+		direction = LEFT;
+		break;
+	default://case 2
+		direction = LEFT;
+		break;
+	}
 	while (IsBlindSweeping)
 	{
-		int direction;
-		switch (ZONELOCATION)
-		{
-		case 0:
-			direction = RIGHT;
-			break;
-		case 1:
-			direction = LEFT;
-			break;
-		default://case 2
-			direction = LEFT;
-			break;
-		}
 		SweepHalfCycle(direction);
 		direction = -direction;
 	}
@@ -265,7 +265,7 @@ bool IsZone(int range)
 	{
 	}
 	char chr = Serial.read();
-	return chr == '1' ? true : false;
+	return chr == '1';
 }
 
 void ReturnHome(int zonelocation)
@@ -282,6 +282,7 @@ void ReturnHome(int zonelocation)
 		Forward(-VL, -VR, REVERSETIME, true);	//reverse to have clearance
 		ServoTurn(SERVOUP, SERVOTIME);			//servo up
 		Forward(VL, VR, TURNINGTIME, true);		//forward to clear machanism
+		Forward(-VL, -VR, REVERSETIME, true);	//reverse to have clearance
 		Turn(THETA, RIGHT);						//turn right by 90
 		ServoTurn(SERVODOWN, SERVOTIME);		//servo down
 		Forward(-VL, -VR, ALIGNINGTIME, false);	//aligning with back wall
@@ -323,7 +324,7 @@ void Deposit()
 {
 	ServoTurn(SERVOUP, SERVOTIME);				//servo up
 	Turn(2 * THETA, LEFT);						//turn 180 to the left
-	Forward(-TVL, -TVR, SHORTTESTTIME, false);	//back until aligned with zone
+	Forward(-VL, -VR, SHORTTESTTIME, false);	//back until aligned with zone
 	ServoTurn(SERVORELEASE, SERVOTIME);			//release balls
 }
 
