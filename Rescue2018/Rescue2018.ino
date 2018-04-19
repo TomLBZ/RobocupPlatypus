@@ -74,10 +74,12 @@ void Blindsweep()
 		direction = LEFT;
 		break;
 	}
+	int counter = 0;
 	while (IsBlindSweeping)
 	{
-		SweepHalfCycle(direction);
+		SweepHalfCycle(direction, counter);
 		direction = -direction;
+		counter += 1;
 	}
 	Deposit();
 }
@@ -291,30 +293,42 @@ void ReturnHome(int zonelocation)
 		Forward(-VL, -VR, LONGTESTTIME, true);	//backward to gate
 		ServoTurn(SERVOUP, SERVOTIME);			//servo up
 		Turn(THETA, RIGHT);						//turn right by 90
-		ServoTurn(SERVODOWN, SERVOTIME);		//servo up
+		ServoTurn(SERVODOWN, SERVOTIME);		//servo down
+		Forward(VL, VR, SHORTSIDETIME, true);	//forward to front wall
+		Forward(-VL, -VR, REVERSETIME, true);	//reverse to have clearance
+		ServoTurn(SERVOUP, SERVOTIME);			//servo up
+		Forward(VL, VR, TURNINGTIME, true);		//forward to clear mechanism
+		Turn(THETA * 2, LEFT);					//turn 180 to direction
+		ServoTurn(SERVODOWN, SERVOTIME);		//servo down
+		Forward(-VL, -VR, ALIGNINGTIME, false);	//aligning with front wall
 		break;									//now in ready position
 	default://case 2:
 		Forward(-VL, -VR, LONGTESTTIME, true);	//backward to gate
 		ServoTurn(SERVOUP, SERVOTIME);			//servo up
 		Turn(THETA, RIGHT);						//turn right by 90
-		ServoTurn(SERVODOWN, SERVOTIME);		//servo up
+		ServoTurn(SERVODOWN, SERVOTIME);		//servo down
 		break;									//now in ready position
 	}
 }
 
-void SweepHalfCycle(int direction)
+void SweepHalfCycle(int direction, int counter)
 {
 	Forward(VL, VR, SHORTSIDETIME, true);	//forward a short side distance
 	Forward(-VL, -VR, REVERSETIME, true);	//reverse to have clearance
 	ServoTurn(SERVOUP, SERVOTIME);			//servo up
 	Forward(VL, VR, TURNINGTIME, true);		//forward to clear mechanism
 	Turn(THETA, direction);					//turn 90 to direction
-	IsBlindSweeping = !IsZone(CLOSE);		//check for evacuation zone
+	ServoTurn(SERVODOWN, SERVOTIME);		//servo down
+	Forward(VL, VR, REVERSETIME, true);		//vibrate forwards while pressing down
+	Forward(-VL, -VR, REVERSETIME, true);	//vibrate backwards while pressing down
+	ServoTurn(SERVOUP, SERVOTIME);			//servo up
+	Forward(VL, VR, TURNINGTIME, true);		//forward to clear track
+	if ((counter > 5) & ((double)counter / 2.0 == (int)(counter / 2)))
+	{
+		IsBlindSweeping = !IsZone(CLOSE);		//check for evacuation zone
+	}
 	if (IsBlindSweeping)
 	{
-		ServoTurn(SERVODOWN, SERVOTIME);		//servo down
-		Forward(VL, VR, TURNINGTIME, true);		//forward to clear track
-		ServoTurn(SERVOUP, SERVOTIME);			//servo up
 		Turn(THETA, direction);					//turn 90 to direction
 		Forward(-VL, -VR, ALIGNINGTIME, false);	//aligning with a wall
 	}										//now ready for next half-cycle
